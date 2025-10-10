@@ -3,7 +3,6 @@ import uuid
 from collections.abc import AsyncGenerator
 
 from llama_stack.apis.agents import AgentConfig, AgentTurnCreateRequest, StepType
-from llama_stack.apis.datatypes import AccessRule
 from llama_stack.log import get_logger
 from llama_stack.providers.inline.agents.meta_reference.agent_instance import ChatAgent
 from llama_stack.providers.utils.telemetry import tracing
@@ -36,9 +35,13 @@ class LightspeedChatAgent(ChatAgent):
         vector_io_api: VectorIO,
         persistence_store: KVStore,
         created_at: str,
-        policy: list[AccessRule],
+        policy: list = None,
         tools_filter_config: ToolsFilter = None,
     ):
+        # Pass policy to parent class for compatibility
+        # Use empty list if None provided
+        if policy is None:
+            policy = []
         super().__init__(
             agent_id,
             agent_config,
