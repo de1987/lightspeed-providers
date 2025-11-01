@@ -8,7 +8,7 @@ version = "0.1.17"
 description = "Lightspeed Stack providers for llama-stack"
 requires-python = ">=3.12"
 dependencies = [
-    "llama-stack==0.2.22",
+    "llama-stack @ git+https://github.com/de1987/llama-stack.git@9497f5155a1a582121d46697dfecba714cac45ba",
     "llama-stack-client==0.2.22",
     "httpx",
     "pydantic>=2.10.6",
