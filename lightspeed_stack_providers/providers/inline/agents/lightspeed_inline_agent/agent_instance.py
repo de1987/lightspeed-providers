@@ -2,7 +2,12 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 
-from llama_stack.apis.agents import AgentConfig, AgentTurnCreateRequest, StepType
+from llama_stack.apis.agents import (
+    AgentConfig,
+    AgentTurnCreateRequest,
+    AgentTurnResponseStreamChunk,
+    StepType,
+)
 from llama_stack.log import get_logger
 from llama_stack.providers.inline.agents.meta_reference.agent_instance import ChatAgent
 from llama_stack.providers.utils.telemetry import tracing
@@ -55,6 +60,53 @@ class LightspeedChatAgent(ChatAgent):
         )
         self.tools_filter_config = tools_filter_config
 
+    def logging_chunk(self, chunk: AgentTurnResponseStreamChunk) -> None:
+        try:
+            if hasattr(chunk, 'model_dump'):
+                chunk_dict = chunk.model_dump()
+                chunk_json = json.dumps(chunk_dict, default=str)
+                logger.info("Chunk content: %s", chunk_json[:300])
+                
+                # Parse the chunk structure based on actual format:
+                # chunk.event.payload.event_type
+                # chunk.event.payload.delta.text
+                
+                # if 'event' in chunk_dict and isinstance(chunk_dict['event'], dict):
+                #     event_data = chunk_dict['event']
+                    
+                #     if 'payload' in event_data and isinstance(event_data['payload'], dict):
+                #         payload = event_data['payload']
+                        
+                #         # Check event_type for completion signals
+                #         event_type = payload.get('event_type', '')
+                #         logger.debug("Event type: %s", event_type)
+                        
+                #         # Check for completion event types
+                #         if event_type in ('step_complete', 'turn_complete', 'complete'):
+                #             logger.info("###################### Detected completion event_type: %s", event_type)
+                #             return True
+                        
+                #         # Check delta.text for vLLM's JSON format with "end" event
+                #         if 'delta' in payload and isinstance(payload['delta'], dict):
+                #             delta = payload['delta']
+                #             text = delta.get('text', '')
+                            
+                #             if text:
+                #                 # Try to parse text as JSON (vLLM might send {"event": "end"})
+                #                 text_stripped = text.strip()
+                #                 if text_stripped.startswith('{') and text_stripped.endswith('}'):
+                #                     try:
+                #                         parsed_text = json.loads(text_stripped)
+                #                         if isinstance(parsed_text, dict) and parsed_text.get('event') == 'end':
+                #                             logger.info("###################### Detected vLLM 'end' event in delta.text")
+                #                             logger.info("End event data: %s", text_stripped)
+                #                             return True
+                #                     except json.JSONDecodeError:
+                #                         pass  # Not JSON, just regular text content
+                    
+        except Exception as e:
+            logger.info("Could not parse chunk structure: %s", e)
+
     async def create_and_execute_turn(
         self, request: AgentTurnCreateRequest
     ) -> AsyncGenerator:
@@ -83,6 +135,7 @@ class LightspeedChatAgent(ChatAgent):
             logger.info("skip tools filtering, number of tools >>>>> %d", tools_number)
 
         async for chunk in self._run_turn(request, turn_id):
+            self.logging_chunk(chunk)
             yield chunk
 
     async def _filter_tools_with_request(self, request: AgentTurnCreateRequest) -> None:
